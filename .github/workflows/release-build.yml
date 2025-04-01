@@ -1,0 +1,79 @@
+name: Build and Publish Dora C API
+
+on:
+  release:
+    types: [published]  # 当有新的 Release 发布时触发工作流
+
+jobs:
+  build-and-release:
+    name: Build and Release C API (${ { matrix.os }} )
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]  # 在三种OS下并行运行
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Build Dora C API crates
+        run: |
+          cargo build -p dora-node-api-c --release
+          cargo build -p dora-operator-api-c --release
+          cargo build -p dora-node-api-cxx --release
+          cargo build -p dora-operator-api-cxx --release
+        # 上述命令将编译所有相关库，并生成静态/动态库和头文件
+
+      - name: Package headers and libraries
+        run: |
+          # 创建打包目录结构
+          mkdir -p dist/include dist/lib
+          # 复制由 cxxbridge 生成的头文件到 include
+          cp target/cxxbridge/dora-node-api-cxx/src/*.h dist/include/ 2>/dev/null || true
+          cp target/cxxbridge/dora-operator-api-cxx/src/*.h dist/include/ 2>/dev/null || true
+          # 复制构建产出的库文件到 lib （根据平台选择扩展名）
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            cp target/release/libdora-node-api-c.* dist/lib/
+            cp target/release/libdora-operator-api-c.* dist/lib/
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            cp target/release/libdora-node-api-c.* dist/lib/
+            cp target/release/libdora-operator-api-c.* dist/lib/
+          else  # Windows
+            # Windows 静态库为 .lib，动态库为 .dll，这里假定使用动态库
+            cp target\\release\\dora_node_api_c.dll dist\\lib\\dora-node-api-c.dll 2>NUL || ^
+              cp target\\release\\dora_node_api_c.lib dist\\lib\\dora-node-api-c.lib
+            cp target\\release\\dora_operator_api_c.dll dist\\lib\\dora-operator-api-c.dll 2>NUL || ^
+              cp target\\release\\dora_operator_api_c.lib dist\\lib\\dora-operator-api-c.lib
+          fi
+        shell: bash
+        # 使用shell脚本收集头文件和库文件到 dist 目录
+
+      - name: Create archive
+        run: |
+          export ARCHIVE_NAME="dora-c-api-${{ matrix.os }}.tar.gz"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            # Windows 平台使用 zip 压缩
+            export ARCHIVE_NAME="dora-c-api-${{ matrix.os }}.zip"
+            powershell Compress-Archive -Path 'dist\*' -DestinationPath $ARCHIVE_NAME
+          else
+            # Linux/macOS 使用 tar.gz 压缩
+            tar -czf $ARCHIVE_NAME -C dist .
+          fi
+        shell: bash
+        # 根据平台创建压缩包，Windows 用zip，其它平台用tar.gz
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}  # 使用当前 Release 的上传URL&#8203;:contentReference[oaicite:4]{index=4}
+          asset_path: ${{ env.ARCHIVE_NAME }}                # 指定待上传文件路径
+          asset_name: ${{ env.ARCHIVE_NAME }}                # 上传后资产的文件名
+          asset_content_type: application/zip                # 文件类型（zip 和 tar.gz 均可用此类型或相应mime）

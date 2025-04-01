@@ -56,7 +56,7 @@ jobs:
           echo "Copying headers..."
           # From cxxbridge
           cp target/cxxbridge/dora-node-api-cxx/*.h dist/include/
-          cp target/cxxbridge/dora-operator-api-cxx/*.h dist/include/
+          # cp target/cxxbridge/dora-operator-api-cxx/*.h dist/include/
           # From example build
           cp examples/c++-dataflow/build/*.h dist/include/
 

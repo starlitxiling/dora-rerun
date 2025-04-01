@@ -2,8 +2,13 @@ name: Build and Publish Dora C API
 
 on:
   release:
-    types: [published]  # 当有新的 Release 发布时触发工作流
-
+    types:
+      - "published"
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+        
 jobs:
   build-and-release:
     name: Build and Release C API (${ { matrix.os }} )
@@ -17,10 +22,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Rust
-        uses: actions/setup-rust@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
+          components: rustfmt, clippy
 
       - name: Build Dora C API crates
         run: |
@@ -56,24 +60,29 @@ jobs:
 
       - name: Create archive
         run: |
-          export ARCHIVE_NAME="dora-c-api-${{ matrix.os }}.tar.gz"
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            # Windows 平台使用 zip 压缩
-            export ARCHIVE_NAME="dora-c-api-${{ matrix.os }}.zip"
-            powershell Compress-Archive -Path 'dist\*' -DestinationPath $ARCHIVE_NAME
+            ARCHIVE_NAME="dora-c-api-${{ matrix.os }}.zip"
+            if ! powershell Compress-Archive -Path 'dist\*' -DestinationPath "$ARCHIVE_NAME" -ErrorAction Stop; then
+              echo "Failed to create zip archive"
+              exit 1
+            fi
           else
-            # Linux/macOS 使用 tar.gz 压缩
-            tar -czf $ARCHIVE_NAME -C dist .
+            ARCHIVE_NAME="dora-c-api-${{ matrix.os }}.tar.gz"
+            if ! tar -czf "$ARCHIVE_NAME" -C dist .; then
+              echo "Failed to create tar.gz archive"
+              exit 1
+            fi
           fi
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
         shell: bash
-        # 根据平台创建压缩包，Windows 用zip，其它平台用tar.gz
 
       - name: Upload release asset
+        if: github.event_name == 'release'  # 只在发布时上传
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.upload_url }}  # 使用当前 Release 的上传URL&#8203;:contentReference[oaicite:4]{index=4}
-          asset_path: ${{ env.ARCHIVE_NAME }}                # 指定待上传文件路径
-          asset_name: ${{ env.ARCHIVE_NAME }}                # 上传后资产的文件名
-          asset_content_type: application/zip                # 文件类型（zip 和 tar.gz 均可用此类型或相应mime）
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./${{ env.ARCHIVE_NAME }}
+          asset_name: ${{ env.ARCHIVE_NAME }}
+          asset_content_type: application/octet-stream

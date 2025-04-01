@@ -62,12 +62,12 @@ jobs:
 
           case "$RUNNER_OS" in
             "Linux")
-              cp target/release/libdora_node_api_c*.{a,so} dist/lib/
-              cp target/release/libdora_operator_api_c*.{a,so} dist/lib/
+              cp target/release/libdora_node_api_c.a dist/lib/
+              cp target/release/libdora_operator_api_c.a dist/lib/
               ;;
             "macOS")
-              cp target/release/libdora_node_api_c*.{a,dylib} dist/lib/
-              cp target/release/libdora_operator_api_c*.{a,dylib} dist/lib/
+              cp target/release/libdora_node_api_c.a dist/lib/
+              cp target/release/libdora_operator_api_c.a dist/lib/
               ;;
             "Windows")
               cp target/release/dora_node_api_c.dll dist/lib/ || cp target/release/dora_node_api_c.lib dist/lib/

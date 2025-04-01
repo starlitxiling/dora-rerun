@@ -35,28 +35,33 @@ jobs:
         # 上述命令将编译所有相关库，并生成静态/动态库和头文件
 
       - name: Package headers and libraries
+        shell: bash
         run: |
-          # 创建打包目录结构
+          echo "创建 dist/include dist/lib 目录..."
           mkdir -p dist/include dist/lib
-          # 复制由 cxxbridge 生成的头文件到 include
+
+          echo "复制 cxxbridge 生成的头文件..."
           cp target/cxxbridge/dora-node-api-cxx/src/*.h dist/include/ 2>/dev/null || true
           cp target/cxxbridge/dora-operator-api-cxx/src/*.h dist/include/ 2>/dev/null || true
-          # 复制构建产出的库文件到 lib （根据平台选择扩展名）
+
+          echo "根据 RUNNER_OS 选择复制库文件..."
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            cp target/release/libdora-node-api-c.* dist/lib/
-            cp target/release/libdora-operator-api-c.* dist/lib/
+            cp target/release/libdora_node_api_c.* dist/lib/ 2>/dev/null || true
+            cp target/release/libdora_operator_api_c.* dist/lib/ 2>/dev/null || true
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            cp target/release/libdora-node-api-c.* dist/lib/
-            cp target/release/libdora-operator-api-c.* dist/lib/
-          else  # Windows
-            # Windows 静态库为 .lib，动态库为 .dll，这里假定使用动态库
-            cp target\\release\\dora_node_api_c.dll dist\\lib\\dora-node-api-c.dll 2>NUL || ^
-              cp target\\release\\dora_node_api_c.lib dist\\lib\\dora-node-api-c.lib
-            cp target\\release\\dora_operator_api_c.dll dist\\lib\\dora-operator-api-c.dll 2>NUL || ^
-              cp target\\release\\dora_operator_api_c.lib dist\\lib\\dora-operator-api-c.lib
+            cp target/release/libdora_node_api_c.* dist/lib/ 2>/dev/null || true
+            cp target/release/libdora_operator_api_c.* dist/lib/ 2>/dev/null || true
+          else
+            # Windows + Git Bash
+            # 先尝试复制 DLL，若不存在则复制 LIB
+            cp target/release/dora_node_api_c.dll dist/lib/dora-node-api-c.dll 2>/dev/null \
+              || cp target/release/dora_node_api_c.lib dist/lib/dora-node-api-c.lib
+            cp target/release/dora_operator_api_c.dll dist/lib/dora-operator-api-c.dll 2>/dev/null \
+              || cp target/release/dora_operator_api_c.lib dist/lib/dora-operator-api-c.lib
           fi
-        shell: bash
-        # 使用shell脚本收集头文件和库文件到 dist 目录
+
+          echo "打包文件已放入 dist/ 目录。"
+
 
       - name: Create archive
         run: |

@@ -110,12 +110,12 @@ jobs:
           echo "Copying library files..."
           case "$RUNNER_OS" in
             "Linux" | "macOS")
-              cp target/${{ matrix.target }}/release/libdora_node_api_c.a dist/lib/ || echo "No libdora_node_api_c.a found"
-              cp target/${{ matrix.target }}/release/libdora_operator_api_c.a dist/lib/ || echo "No libdora_operator_api_c.a found"
+              cp target/release/libdora_node_api_c.a dist/lib/ || echo "No libdora_node_api_c.a found"
+              cp target/release/libdora_operator_api_c.a dist/lib/ || echo "No libdora_operator_api_c.a found"
               ;;
             "Windows")
-              cp target\\${{ matrix.target }}\\release\\dora_node_api_c.lib dist\\lib\\ || echo "No dora_node_api_c found"
-              cp target\\${{ matrix.target }}\\release\\dora_operator_api_c.lib dist\\lib\\ || echo "No dora_operator_api_c found"
+              cp target\\release\\dora_node_api_c.lib dist\\lib\\ || echo "No dora_node_api_c found"
+              cp target\\release\\dora_operator_api_c.lib dist\\lib\\ || echo "No dora_operator_api_c found"
               ;;
           esac
 
@@ -123,6 +123,7 @@ jobs:
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             ARCHIVE_NAME="libdora-${VERSION}-${{ matrix.target }}.zip"
             powershell Compress-Archive -Path 'dist\*' -DestinationPath "$ARCHIVE_NAME"
+            move "$ARCHIVE_NAME" .
           else
             ARCHIVE_NAME="libdora-${VERSION}-${{ matrix.target }}.tar.gz"
             tar -czf "$ARCHIVE_NAME" -C dist .

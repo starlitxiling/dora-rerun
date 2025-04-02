@@ -41,27 +41,44 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.targets }}
+
+      - name: Add Rust targets
+        shell: bash
+        run: |
+          # 将多行目标转换为数组
+          targets="${{ matrix.targets }}"
+          # 替换换行符和多余的空格
+          targets=$(echo "$targets" | tr '\n' ' ' | tr -s ' ')
+          echo "Targets to build: $targets"
+          
+          # 为每个目标添加支持
+          for target in $targets; do
+            echo "Adding target: $target"
+            rustup target add "$target"
+          done
 
       - name: Install cross
         if: runner.os == 'Linux'
         run: cargo install cross
 
       - name: Build for all targets
+        shell: bash
         run: |
-          for target in ${{ matrix.targets }}; do
+          targets="${{ matrix.targets }}"
+          targets=$(echo "$targets" | tr '\n' ' ' | tr -s ' ')
+          
+          for target in $targets; do
             echo "Building for $target"
             if [[ "$RUNNER_OS" == "Linux" ]]; then
-              cross build --release --target $target -p dora-node-api-c
-              cross build --release --target $target -p dora-operator-api-c
-              cross build --release --target $target -p dora-node-api-cxx
-              cross build --release --target $target -p dora-operator-api-cxx
+              cross build --release --target "$target" -p dora-node-api-c
+              cross build --release --target "$target" -p dora-operator-api-c
+              cross build --release --target "$target" -p dora-node-api-cxx
+              cross build --release --target "$target" -p dora-operator-api-cxx
             else
-              cargo build --release --target $target -p dora-node-api-c
-              cargo build --release --target $target -p dora-operator-api-c
-              cargo build --release --target $target -p dora-node-api-cxx
-              cargo build --release --target $target -p dora-operator-api-cxx
+              cargo build --release --target "$target" -p dora-node-api-c
+              cargo build --release --target "$target" -p dora-operator-api-c
+              cargo build --release --target "$target" -p dora-node-api-cxx
+              cargo build --release --target "$target" -p dora-operator-api-cxx
             fi
           done
 

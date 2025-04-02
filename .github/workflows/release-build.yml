@@ -39,6 +39,7 @@ jobs:
 
       - name: Install cross-compilation tools (Linux)
         if: runner.os == 'Linux'
+        shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-i686-linux-gnu musl-tools
@@ -47,13 +48,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Add Rust target
+        shell: bash
         run: rustup target add ${{ matrix.target }}
 
       - name: Install cross (Linux)
         if: runner.os == 'Linux'
+        shell: bash
         run: cargo install cross || true
 
       - name: Build for target
+        shell: bash
         run: |
           echo "Building for target: ${{ matrix.target }}"
           if [[ "$RUNNER_OS" == "Linux" ]]; then
@@ -69,6 +73,7 @@ jobs:
           fi
 
       - name: Package artifact
+        shell: bash
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
             VERSION=${GITHUB_REF#refs/tags/}

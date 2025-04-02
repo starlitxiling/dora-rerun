@@ -79,7 +79,10 @@ jobs:
           echo "Verifying artifacts..."
           [ -f dist/include/dora-node-api.h ] || { echo "Missing dora-node-api.h"; exit 1; }
           [ -f dist/lib/libdora_node_api_c* ] || { echo "Missing node library"; exit 1; }
-          tree dist/
+          
+          # 使用ls替代tree命令
+          echo "Directory structure:"
+          ls -R dist/
 
       # Create archive with triplet
       - name: Create distribution archive

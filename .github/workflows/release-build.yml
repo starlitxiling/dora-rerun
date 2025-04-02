@@ -59,13 +59,8 @@ jobs:
       - name: Generate header files
         shell: bash
         run: |
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            # Linux 上使用 cross 运行示例
-            cross run --example cxx-dataflow --release
-          else
-            # macOS 和 Windows 上直接使用 cargo
-            cargo run --example cxx-dataflow --release
-          fi
+          echo "Generating header file with: cargo run --example cxx-dataflow --release"
+          cargo run --example cxx-dataflow --release
 
       - name: Build for all targets
         shell: bash

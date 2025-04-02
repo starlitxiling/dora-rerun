@@ -56,32 +56,23 @@ jobs:
         shell: bash
         run: cargo install cross || true
 
-      - name: Generate header files
+      - name: Build for target and generate header file
         shell: bash
         run: |
+          echo "Building for target: ${{ matrix.target }}"
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            cross build --release --target ${{ matrix.target }} -p dora-node-api-c
+            cross build --release --target ${{ matrix.target }} -p dora-operator-api-c
+            cross build --release --target ${{ matrix.target }} -p dora-node-api-cxx
+            cross build --release --target ${{ matrix.target }} -p dora-operator-api-cxx
+          else
+            cargo build --release --target ${{ matrix.target }} -p dora-node-api-c
+            cargo build --release --target ${{ matrix.target }} -p dora-operator-api-c
+            cargo build --release --target ${{ matrix.target }} -p dora-node-api-cxx
+            cargo build --release --target ${{ matrix.target }} -p dora-operator-api-cxx
+          fi
           echo "Generating header file with: cargo run --example cxx-dataflow --release"
           cargo run --example cxx-dataflow --release
-
-      - name: Build for all targets
-        shell: bash
-        run: |
-          targets="${{ matrix.targets }}"
-          targets=$(echo "$targets" | tr '\n' ' ' | tr -s ' ')
-          
-          for target in $targets; do
-            echo "Building for $target"
-            if [[ "$RUNNER_OS" == "Linux" ]]; then
-              cross build --release --target "$target" -p dora-node-api-c
-              cross build --release --target "$target" -p dora-operator-api-c
-              cross build --release --target "$target" -p dora-node-api-cxx
-              cross build --release --target "$target" -p dora-operator-api-cxx
-            else
-              cargo build --release --target "$target" -p dora-node-api-c
-              cargo build --release --target "$target" -p dora-operator-api-c
-              cargo build --release --target "$target" -p dora-node-api-cxx
-              cargo build --release --target "$target" -p dora-operator-api-cxx
-            fi
-          done
 
       - name: Package artifact
         shell: bash
@@ -110,12 +101,22 @@ jobs:
           echo "Copying library files..."
           case "$RUNNER_OS" in
             "Linux" | "macOS")
-              cp target/release/libdora_node_api_c.a dist/lib/ || echo "No libdora_node_api_c.a found"
-              cp target/release/libdora_operator_api_c.a dist/lib/ || echo "No libdora_operator_api_c.a found"
+              if [ -d "target/${{ matrix.target }}/release" ]; then
+                LIB_DIR="target/${{ matrix.target }}/release"
+              else
+                LIB_DIR="target/release"
+              fi
+              cp "$LIB_DIR/libdora_node_api_c.a" dist/lib/ || echo "No libdora_node_api_c.a found"
+              cp "$LIB_DIR/libdora_operator_api_c.a" dist/lib/ || echo "No libdora_operator_api_c.a found"
               ;;
             "Windows")
-              cp target\\release\\dora_node_api_c.lib dist\\lib\\ || echo "No dora_node_api_c found"
-              cp target\\release\\dora_operator_api_c.lib dist\\lib\\ || echo "No dora_operator_api_c found"
+              if [ -d "target/${{ matrix.target }}/release" ]; then
+                LIB_DIR="target/${{ matrix.target }}/release"
+              else
+                LIB_DIR="target/release"
+              fi
+              cp "$LIB_DIR/dora_node_api_c.lib" dist/lib/ || echo "No dora_node_api_c found"
+              cp "$LIB_DIR/dora_operator_api_c.lib" dist/lib/ || echo "No dora_operator_api_c found"
               ;;
           esac
 

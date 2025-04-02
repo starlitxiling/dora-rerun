@@ -56,21 +56,37 @@ jobs:
         shell: bash
         run: cargo install cross || true
 
-      - name: Build for target
+      - name: Generate header files
         shell: bash
         run: |
-          echo "Building for target: ${{ matrix.target }}"
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            cross build --release --target ${{ matrix.target }} -p dora-node-api-c
-            cross build --release --target ${{ matrix.target }} -p dora-operator-api-c
-            cross build --release --target ${{ matrix.target }} -p dora-node-api-cxx
-            cross build --release --target ${{ matrix.target }} -p dora-operator-api-cxx
+            # Linux 上使用 cross 运行示例
+            cross run --example c++-dataflow
           else
-            cargo build --release --target ${{ matrix.target }} -p dora-node-api-c
-            cargo build --release --target ${{ matrix.target }} -p dora-operator-api-c
-            cargo build --release --target ${{ matrix.target }} -p dora-node-api-cxx
-            cargo build --release --target ${{ matrix.target }} -p dora-operator-api-cxx
+            # macOS 和 Windows 上直接使用 cargo
+            cargo run --example c++-dataflow
           fi
+
+      - name: Build for all targets
+        shell: bash
+        run: |
+          targets="${{ matrix.targets }}"
+          targets=$(echo "$targets" | tr '\n' ' ' | tr -s ' ')
+          
+          for target in $targets; do
+            echo "Building for $target"
+            if [[ "$RUNNER_OS" == "Linux" ]]; then
+              cross build --release --target "$target" -p dora-node-api-c
+              cross build --release --target "$target" -p dora-operator-api-c
+              cross build --release --target "$target" -p dora-node-api-cxx
+              cross build --release --target "$target" -p dora-operator-api-cxx
+            else
+              cargo build --release --target "$target" -p dora-node-api-c
+              cargo build --release --target "$target" -p dora-operator-api-c
+              cargo build --release --target "$target" -p dora-node-api-cxx
+              cargo build --release --target "$target" -p dora-operator-api-cxx
+            fi
+          done
 
       - name: Package artifact
         shell: bash
@@ -103,17 +119,17 @@ jobs:
               cp target/${{ matrix.target }}/release/libdora_operator_api_c.a dist/lib/ || echo "No libdora_operator_api_c.a found"
               ;;
             "Windows")
-              cp target\\${{ matrix.target }}\\release\\dora_node_api_c.dll dist\\lib\\ || cp target\\${{ matrix.target }}\\release\\dora_node_api_c.lib dist\\lib\\ || echo "No dora_node_api_c found"
-              cp target\\${{ matrix.target }}\\release\\dora_operator_api_c.dll dist\\lib\\ || cp target\\${{ matrix.target }}\\release\\dora_operator_api_c.lib dist\\lib\\ || echo "No dora_operator_api_c found"
+              cp target\\${{ matrix.target }}\\release\\dora_node_api_c.lib dist\\lib\\ || echo "No dora_node_api_c found"
+              cp target\\${{ matrix.target }}\\release\\dora_operator_api_c.lib dist\\lib\\ || echo "No dora_operator_api_c found"
               ;;
           esac
 
           echo "Packaging artifact..."
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            ARCHIVE_NAME="dora-c-api-${VERSION}-${{ matrix.target }}.zip"
+            ARCHIVE_NAME="libdora-${VERSION}-${{ matrix.target }}.zip"
             powershell Compress-Archive -Path 'dist\*' -DestinationPath "$ARCHIVE_NAME"
           else
-            ARCHIVE_NAME="dora-c-api-${VERSION}-${{ matrix.target }}.tar.gz"
+            ARCHIVE_NAME="libdora-${VERSION}-${{ matrix.target }}.tar.gz"
             tar -czf "$ARCHIVE_NAME" -C dist .
           fi
           echo "Archive created: $ARCHIVE_NAME"

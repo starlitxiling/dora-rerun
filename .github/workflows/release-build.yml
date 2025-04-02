@@ -61,10 +61,10 @@ jobs:
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             # Linux 上使用 cross 运行示例
-            cross run --example c++-dataflow
+            cross run --example cxx-dataflow --release
           else
             # macOS 和 Windows 上直接使用 cargo
-            cargo run --example c++-dataflow
+            cargo run --example cxx-dataflow --release
           fi
 
       - name: Build for all targets

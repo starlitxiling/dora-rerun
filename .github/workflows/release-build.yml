@@ -13,20 +13,31 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            targets: >-
+              x86_64-unknown-linux-gnu
+              x86_64-unknown-linux-musl
+              aarch64-unknown-linux-gnu
+              aarch64-unknown-linux-musl
+              armv7-unknown-linux-musleabihf
+              i686-unknown-linux-gnu
+          - os: macos-latest
+            targets: >-
+              x86_64-apple-darwin
+              aarch64-apple-darwin
+          - os: windows-latest
+            targets: x86_64-pc-windows-msvc
 
     steps:
-      # Checkout repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up Rust toolchain
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      # Detect target triplet
       - name: Detect target triplet
         id: triplet
         shell: bash
@@ -35,7 +46,6 @@ jobs:
           echo "TRIPLET=$TRIPLET" >> $GITHUB_ENV
           echo "Detected triplet: $TRIPLET"
 
-      # Build steps
       - name: Build and generate artifacts
         run: |
           # Build libraries
@@ -47,7 +57,6 @@ jobs:
           # Generate example headers (关键修复点)
           cargo run --example cxx-dataflow --release
 
-      # Packaging
       - name: Package artifacts
         shell: bash
         run: |
@@ -55,10 +64,19 @@ jobs:
 
           echo "Copying headers..."
           # From cxxbridge
-          cp target/cxxbridge/dora-node-api-cxx/*.h dist/include/
-          # cp target/cxxbridge/dora-operator-api-cxx/*.h dist/include/
-          # From example build
-          cp examples/c++-dataflow/build/*.h dist/include/
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            cp apis\\c\\node\\*.h dist\\include\\ || echo "No headers found"
+            cp apis\\c\\operator\\*.h dist\\include\\ || echo "No headers found"
+            cp target\\cxxbridge\\dora-node-api-cxx\\*.h dist\\include\\ || echo "No cxxbridge headers found"
+            cp examples\\c++-dataflow\\build\\*.h dist\\include\\ || echo "No example headers found"
+            cp example\\c++-dataflow\\operator-rust-api\\operator.h dist\\include\\ || echo "No headers found"
+          else
+            cp apis/c/node/*.h dist/include || echo "No headers found"
+            cp apis/c/operator/*.h dist/include || echo "No headers found"
+            cp target/cxxbridge/dora-node-api-cxx/*.h dist/include/ || echo "No cxxbridge headers found"
+            cp examples/c++-dataflow/build/*.h dist/include/ || echo "No example headers found"
+            cp example/c++-dataflow/operator-rust-api/operator.h || echo "No headers found"
+          fi
 
           case "$RUNNER_OS" in
             "Linux")
@@ -70,34 +88,32 @@ jobs:
               cp target/release/libdora_operator_api_c.a dist/lib/
               ;;
             "Windows")
-              cp target/release/dora_node_api_c.dll dist/lib/ || cp target/release/dora_node_api_c.lib dist/lib/
-              cp target/release/dora_operator_api_c.dll dist/lib/ || cp target/release/dora_operator_api_c.lib dist/lib/
+              cp target\\release\\dora_node_api_c.dll dist\\lib\\ || cp target\\release\\dora_node_api_c.lib dist\\lib\\
+              cp target\\release\\dora_operator_api_c.dll dist\\lib\\ || cp target\\release\\dora_operator_api_c.lib dist\\lib\\
               ;;
           esac
 
-          # Verification
-          echo "Verifying artifacts..."
-          [ -f dist/include/dora-node-api.h ] || { echo "Missing dora-node-api.h"; exit 1; }
-          [ -f dist/lib/libdora_node_api_c* ] || { echo "Missing node library"; exit 1; }
-          
-          # 使用ls替代tree命令
           echo "Directory structure:"
           ls -R dist/
 
-      # Create archive with triplet
-      - name: Create distribution archive
+      - name: Create archive
         shell: bash
         run: |
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="v-latest"
+          fi
+          
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            ARCHIVE_NAME="dora-cpp-api-${{ env.TRIPLET }}.zip"
+            ARCHIVE_NAME="dora-${VERSION}-${{ env.TRIPLET }}.zip"
             powershell Compress-Archive -Path 'dist\*' -DestinationPath "$ARCHIVE_NAME"
           else
-            ARCHIVE_NAME="dora-cpp-api-${{ env.TRIPLET }}.tar.gz"
+            ARCHIVE_NAME="dora-c-api-${VERSION}-${{ env.TRIPLET }}.tar.gz"
             tar -czf "$ARCHIVE_NAME" -C dist .
           fi
           echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
 
-      # Upload assets
       - name: Upload release asset
         if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1

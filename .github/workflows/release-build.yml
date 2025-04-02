@@ -33,10 +33,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install cross-compilation tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-i686-linux-gnu musl-tools
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          targets: ${{ matrix.targets }}
+
+      - name: Install cross
+        if: runner.os == 'Linux'
+        run: cargo install cross
+
+      - name: Build for all targets
+        run: |
+          for target in ${{ matrix.targets }}; do
+            echo "Building for $target"
+            if [[ "$RUNNER_OS" == "Linux" ]]; then
+              cross build --release --target $target -p dora-node-api-c
+              cross build --release --target $target -p dora-operator-api-c
+              cross build --release --target $target -p dora-node-api-cxx
+              cross build --release --target $target -p dora-operator-api-cxx
+            else
+              cargo build --release --target $target -p dora-node-api-c
+              cargo build --release --target $target -p dora-operator-api-c
+              cargo build --release --target $target -p dora-node-api-cxx
+              cargo build --release --target $target -p dora-operator-api-cxx
+            fi
+          done
 
       - name: Detect target triplet
         id: triplet
@@ -106,7 +133,7 @@ jobs:
           fi
           
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            ARCHIVE_NAME="dora-${VERSION}-${{ env.TRIPLET }}.zip"
+            ARCHIVE_NAME="dora-c-api-${VERSION}-${{ env.TRIPLET }}.zip"
             powershell Compress-Archive -Path 'dist\*' -DestinationPath "$ARCHIVE_NAME"
           else
             ARCHIVE_NAME="dora-c-api-${VERSION}-${{ env.TRIPLET }}.tar.gz"
